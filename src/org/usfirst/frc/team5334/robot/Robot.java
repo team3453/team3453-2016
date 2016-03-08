@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -41,6 +42,7 @@ public class Robot extends SampleRobot {
     SpeedController rightFront;
     SpeedController rightRear;
     
+    SpeedController tiltTable;
     SpeedController roller;
     
     CANTalon FourBar;
@@ -56,6 +58,9 @@ public class Robot extends SampleRobot {
     boolean rollerOutClick = false;
     boolean rollerIn = false;
     boolean rollerOut = false;
+    
+    boolean tiltTableUp = false;
+    boolean tiltTableDown = false;
     
     boolean shooterInClick = false;
     boolean shooterOutClick = false;
@@ -77,13 +82,27 @@ public class Robot extends SampleRobot {
         rightStick = new Joystick(1);
         
         // substitute for Talons (SR) for competition robot
-   
+
+        /*
+        // Competition Bot
         leftFront  = new Talon(0);
         leftRear   = new Talon(1);
         rightFront = new Talon(2);
         rightRear  = new Talon(3);
         
+        tiltTable = new Talon(5);
+        
         roller = new Talon(6);
+        */
+        
+        // practice Bot
+        leftFront  = new Victor(0);
+        leftRear   = new Victor(1);
+        rightFront = new Victor(2);
+        rightRear  = new Victor(3);
+        
+        tiltTable = new Victor(5);
+        roller = new Victor(6);
         
         myRobot = new RobotDrive(leftFront,leftRear,rightFront,rightRear);
         revRobot = new RobotDrive(rightFront,rightRear,leftFront,leftRear);
@@ -114,9 +133,18 @@ public class Robot extends SampleRobot {
         FourBar.setPosition(0);
         //FourBar.setAllowableClosedLoopErr(5);
         leftShooter.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
+        leftShooter.enableBrakeMode(false);
         leftShooter.set(0);
+        leftShooter.disable();
 		rightShooter.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
-		rightShooter.enable();
+		rightShooter.enableBrakeMode(false);
+		rightShooter.set(0);
+		rightShooter.disable();
+		
+		rightShooter.changeControlMode(CANTalon.TalonControlMode.Follower);
+		rightShooter.set(leftShooter.getDeviceID());
+		rightShooter.reverseOutput(true);
+		
 		
     }
 
@@ -190,6 +218,31 @@ public class Robot extends SampleRobot {
         		
         	}
         	
+        	// tileTable up and down
+        	if (rightStick.getRawButton(3)) {
+        		// tiltTable down
+        		tiltTableDown = true;
+        		tiltTableUp = false;
+        	}
+        	
+        	if (rightStick.getRawButton(2)) {
+        		tiltTableUp = true;
+        		tiltTableDown = false;
+        	}
+        	
+        	if (!rightStick.getRawButton(2) && !rightStick.getRawButton(3)) {
+        		tiltTableUp = false;
+        		tiltTableDown = false;
+        	}
+        	
+        	if (tiltTableUp) {
+        		tiltTable.set(1.0);
+        	} else if (tiltTableDown) {
+        		tiltTable.set(-1.0);
+        	} else {
+        		tiltTable.set(0);
+        	}
+        	
         	// button 6 runs roller out
         	if (rightStick.getRawButton(6)) {
         		rollerOutClick = true;       		
@@ -246,17 +299,42 @@ public class Robot extends SampleRobot {
         			shooterIn = false;
         			shooterOut = false;
         			rightShooter.set(0);
-        			leftShooter.set(0);;
+        			leftShooter.set(0);
+        			leftShooter.disable();
+        			rightShooter.disable();
         		} else {
         			// start shooter
         			shooterIn = true;
         			shooterOut = false;
+        			leftShooter.disable();
+        			rightShooter.disable();
         		}
         	}
         	
         	if (shooterIn) {
-        		rightShooter.set(0.5225);
-        		leftShooter.set(-0.5225);
+        		
+        		if (leftShooter.getOutputVoltage() > -0.1) {
+        			leftShooter.changeControlMode(CANTalon.TalonControlMode.Speed);
+        		
+        			//100% throttle = 11.64V  velocity = 40064        		
+        			//leftShooter.setPID(.21, 0.0, 0.0);
+        			//leftShooter.setF(1.5);
+
+        			leftShooter.setPID(0.03, 0, 0);
+        			leftShooter.setF(0.8);
+        			
+        			rightShooter.changeControlMode(CANTalon.TalonControlMode.Follower);
+        			rightShooter.set(leftShooter.getDeviceID());
+        			rightShooter.reverseOutput(true);
+        			
+        			leftShooter.set(-2000);
+        			leftShooter.enable();
+        			rightShooter.enable();
+        		}
+        		
+        		
+        		//rightShooter.set(0.5225);
+        		//leftShooter.set(-0.5225);
         		shooterOut = false;
         	}
 
@@ -270,19 +348,53 @@ public class Robot extends SampleRobot {
         			shooterOut = false;
         			shooterIn = false;
         			rightShooter.set(0);
-        			leftShooter.set(0);;
+        			leftShooter.set(0);
+        			leftShooter.disable();
+        			rightShooter.disable();
         		} else {
         			// start shooter
         			shooterOut = true;
         			shooterIn = false;
+        			leftShooter.disable();
+        			rightShooter.disable();
         		}
         	}
         	
         	if (shooterOut) {
-        		rightShooter.set(-1.0);
-        		leftShooter.set(1.0);
+        		
+        		
+        		
+        		if (leftShooter.getOutputVoltage() < 0.1) {
+        			leftShooter.changeControlMode(CANTalon.TalonControlMode.Speed);
+        		
+        			//100% throttle = 11.64V  velocity = 40064        		
+        			//leftShooter.setPID(.21, 0.0, 0.0);
+        			//leftShooter.setF(1.5);
+
+        			leftShooter.setPID(0.03, 0, 0);
+        			leftShooter.setF(0.8);
+        			
+        			rightShooter.changeControlMode(CANTalon.TalonControlMode.Follower);
+        			rightShooter.set(leftShooter.getDeviceID());
+        			rightShooter.reverseOutput(true);
+        			
+        			leftShooter.set(2250);
+        			leftShooter.enable();
+        			rightShooter.enable();
+        		}
+        		
+        		//rightShooter.set(-1.0);
+        		//leftShooter.set(1.0);
         		shooterIn = false;
         	}
+        	
+        	if (!shooterIn && !shooterOut) {
+        		leftShooter.set(0);
+        		rightShooter.set(0);
+        		leftShooter.disable();
+        		rightShooter.disable();
+        	}
+        	
         	
             Timer.delay(0.005);		// wait for a motor update time
         }
