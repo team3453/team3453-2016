@@ -44,6 +44,7 @@ public class Robot extends SampleRobot {
     
     SpeedController tiltTable;
     SpeedController roller;
+    SpeedController boulderHolder;
     
     CANTalon FourBar;
     CANTalon leftShooter;
@@ -67,8 +68,16 @@ public class Robot extends SampleRobot {
     boolean shooterIn = false;
     boolean shooterOut = false;
     
-    DigitalInput forwardLimit;
-    DigitalInput rearLimit;
+    boolean boulderIn = false;
+    boolean boulderOut = false;
+    
+    DigitalInput fourBarForwardLimit;
+    DigitalInput fourBarRearLimit;
+    
+    DigitalInput tiltTableForwardLimit;
+    DigitalInput tiltTableRearLimit;
+    
+    DigitalInput boulderHolderLimit;
     
     final String defaultAuto = "Default";
     final String customAuto = "My Auto";
@@ -90,9 +99,10 @@ public class Robot extends SampleRobot {
         rightFront = new Talon(2);
         rightRear  = new Talon(3);
         
-        tiltTable = new Talon(5);
-        
+        tiltTable = new Talon(5);        
         roller = new Talon(6);
+        
+        boulderHolder = new Talon(7);
         */
         
         // practice Bot
@@ -103,6 +113,8 @@ public class Robot extends SampleRobot {
         
         tiltTable = new Victor(5);
         roller = new Victor(6);
+        
+        boulderHolder = new Victor(7);
         
         myRobot = new RobotDrive(leftFront,leftRear,rightFront,rightRear);
         revRobot = new RobotDrive(rightFront,rightRear,leftFront,leftRear);
@@ -115,8 +127,13 @@ public class Robot extends SampleRobot {
         rightShooter = new CANTalon(3);
 
         
-        forwardLimit = new DigitalInput(0);
-        rearLimit = new DigitalInput(1);
+        fourBarForwardLimit = new DigitalInput(0);
+        fourBarRearLimit = new DigitalInput(1);
+        
+        tiltTableForwardLimit = new DigitalInput(2);
+        tiltTableRearLimit = new DigitalInput(3);
+        
+        boulderHolderLimit = new DigitalInput(4);        
     }
     
     public void robotInit() {
@@ -199,22 +216,59 @@ public class Robot extends SampleRobot {
         		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
         		FourBar.enable();
         		
-        		if ((rightStick.getY() > -0.2) && (rightStick.getY() < 0.2)) {
-        			FourBar.set(0);
-        		}
-        		if (!rearLimit.get() && (rightStick.getY() > 0.2)) {
-        			FourBar.set(-0.4);
-        		} else if (rearLimit.get() && (rightStick.getY() > 0.2)) {
-        			FourBar.set(0);
-        		}
-        		if (!forwardLimit.get() && (rightStick.getY() < -0.2)) {
-        			FourBar.set(0.4);
-        		} else if (forwardLimit.get() && (rightStick.getY() < -0.2)) {
-        			FourBar.set(0);
-        		}
-        		// pull back on rightstick SRX turns green
-        		
         		double input = rightStick.getY();
+        		boolean trigger = rightStick.getRawButton(1);
+        		
+        		if (!trigger) {
+	        		// joystick pullback = postive values
+	        		// joystick pull back = FourBar up = rearlimit controlled
+	        		// -/neg motor turn -> FourBar up
+	        		// +/pos motor turn -> FourBar down
+	        		
+	        		if ((input > -0.2) && (input < 0.2)) {
+	        			FourBar.set(0);
+	        		}
+	        		// FourBar up  = pull joystick back
+	        		if (!fourBarRearLimit.get() && (input > 0.2)) {
+	        			FourBar.set(-0.5);
+	        		} else if (fourBarRearLimit.get() && (input > 0.2)) {
+	        			FourBar.set(0);
+	        		}
+	        		
+	        		// FourBar down = push joystick forward
+	        		if (!fourBarForwardLimit.get() && (input < -0.2)) {
+	        			FourBar.set(0.5);
+	        		} else if (fourBarForwardLimit.get() && (input < -0.2)) {
+	        			FourBar.set(0);
+	        		}
+	        		// pull back on rightstick SRX turns green
+        		
+        		} else {
+        			
+        			// run tiltTable
+        			// +/pos motor turn -> tiltTable up
+        			
+	        		if ((input > -0.2) && (input < 0.2)) {
+	        			tiltTable.set(0);
+	        		}
+	        		// tiltTable up  = pull joystick back
+	        		if (!tiltTableRearLimit.get() && (input > 0.2)) {
+	        			tiltTable.set(1.0);
+	        		} else if (tiltTableRearLimit.get() && (input > 0.2)) {
+	        			tiltTable.set(0);
+	        		}
+	        		
+	        		// tiltTable down = push joystick forward
+	        		if (!tiltTableForwardLimit.get() && (input < -0.2)) {
+	        			tiltTable.set(-1.0);
+	        		} else if (tiltTableForwardLimit.get() && (input < -0.2)) {
+	        			tiltTable.set(0);
+	        		}
+        			
+        		
+        		}
+        		
+        		
         		
         	}
         	
@@ -236,14 +290,23 @@ public class Robot extends SampleRobot {
         	}
         	
         	if (tiltTableUp) {
-        		tiltTable.set(1.0);
+        		if (!tiltTableRearLimit.get()) {
+        			tiltTable.set(1.0);
+        		} else {
+        			tiltTable.set(0);
+        		}
         	} else if (tiltTableDown) {
-        		tiltTable.set(-1.0);
+        		if (!tiltTableForwardLimit.get()) {
+        			tiltTable.set(-1.0);
+        		} else {
+        			tiltTable.set(0);
+        		}
         	} else {
         		tiltTable.set(0);
         	}
         	
         	// button 6 runs roller out
+        	// should only run roller out if tiltTable is down
         	if (rightStick.getRawButton(6)) {
         		rollerOutClick = true;       		
         	} else if (rollerOutClick) {
@@ -266,6 +329,7 @@ public class Robot extends SampleRobot {
         	}
         	
         	// button 7 runs roller in
+        	//  run roller in only if tiltTable is down
         	if (rightStick.getRawButton(7)) {
         		rollerInClick = true;       		
         	} else if (rollerInClick) {
@@ -327,7 +391,7 @@ public class Robot extends SampleRobot {
         			rightShooter.set(leftShooter.getDeviceID());
         			rightShooter.reverseOutput(true);
         			
-        			leftShooter.set(-2000);
+        			leftShooter.set(2000);
         			leftShooter.enable();
         			rightShooter.enable();
         		}
@@ -378,7 +442,7 @@ public class Robot extends SampleRobot {
         			rightShooter.set(leftShooter.getDeviceID());
         			rightShooter.reverseOutput(true);
         			
-        			leftShooter.set(2250);
+        			leftShooter.set(-2250);
         			leftShooter.enable();
         			rightShooter.enable();
         		}
