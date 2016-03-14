@@ -675,7 +675,7 @@ public class Robot extends SampleRobot {
     	
     	} else {
     		boulderOutCount++;
-    		if (boulderOutCount > 33) {
+    		if (boulderOutCount > 63) {
     			boulderOutCount = 0;
     			// stop shooter motors
     			shooterOut = false;
@@ -692,11 +692,11 @@ public class Robot extends SampleRobot {
     
     public void runRoller() {
     	if (rollerOut) {
-    		roller.set(-1.0);
+    		roller.set(1.0);
     		rollerIn = false;
     	}
     	if (rollerIn) {
-    		roller.set(1.0);
+    		roller.set(-1.0);
     		rollerOut = false;
     	}
     	if (!rollerOut && !rollerIn) {
@@ -761,7 +761,7 @@ public class Robot extends SampleRobot {
     			rightShooter.set(leftShooter.getDeviceID());
     			rightShooter.reverseOutput(true);
     			
-    			leftShooter.set(2000);
+    			leftShooter.set(1000);
     			leftShooter.enable();
     			rightShooter.enable();
     		}
@@ -842,13 +842,13 @@ public class Robot extends SampleRobot {
 */    	
     	if (tiltTableUp) {
     		if (!tiltTableRearLimit.get()) {
-    			tiltTable.set(1.0);
+    			tiltTable.set(-1.0);
     		} else {
     			tiltTable.set(0);
     		}
     	} else if (tiltTableDown) {
     		if (!tiltTableForwardLimit.get()) {
-    			tiltTable.set(-1.0);
+    			tiltTable.set(1.0);
     		} else {
     			tiltTable.set(0);
     		}
