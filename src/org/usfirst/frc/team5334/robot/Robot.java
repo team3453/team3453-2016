@@ -123,8 +123,8 @@ public class Robot extends SampleRobot {
         rightFront = new Victor(2);
         rightRear  = new Victor(3);
         
-        tiltTable = new Victor(5);
-        roller = new Victor(6);
+        tiltTable     = new Victor(5);
+        roller        = new Victor(6);
         
         boulderHolder = new Victor(7);
         
@@ -230,7 +230,7 @@ public class Robot extends SampleRobot {
             // Operator Switch Mode
             double input = rightStick.getY();
     		boolean trigger = rightStick.getRawButton(1);
-            boolean b1 = rightStick.getRawButton(3);
+            boolean b3 = rightStick.getRawButton(3);
             boolean b2 = rightStick.getRawButton(2);
             
             if (input < -0.3) {
@@ -239,7 +239,7 @@ public class Robot extends SampleRobot {
             } else if (input > 0.3) {
             	// pull joystick back
             	newMode = HIGH_GOAL_MODE;
-            } else if (b1) {
+            } else if (b3) {
             	newMode = PICKUP_MODE;
             } else if (b2) {
             	newMode = START_MODE;
@@ -614,7 +614,35 @@ public class Robot extends SampleRobot {
     			boulderIn = true;
     			boulderOut = false;
     			runBoulder();
+    		} else {
+    			
+        		// if boulder is not in, then stop all
+        		rollerIn = false;
+        		rollerOut = false;
+        		runRoller();
+        		
+        		shooterIn = false;
+        		shooterOut = false;
+        		runShooter();
+        		
+        		boulderIn = false;
+        		boulderOut = false;
+        		runBoulder();
     		}
+    	} else {
+    		
+    		// if boulder is in, then stop all
+    		rollerIn = false;
+    		rollerOut = false;
+    		runRoller();
+    		
+    		shooterIn = false;
+    		shooterOut = false;
+    		runShooter();
+    		
+    		boulderIn = false;
+    		boulderOut = false;
+    		runBoulder();
     	}
     }
     
@@ -647,7 +675,7 @@ public class Robot extends SampleRobot {
     	
     	} else {
     		boulderOutCount++;
-    		if (boulderOutCount > 33) {
+    		if (boulderOutCount > 63) {
     			boulderOutCount = 0;
     			// stop shooter motors
     			shooterOut = false;
@@ -664,11 +692,11 @@ public class Robot extends SampleRobot {
     
     public void runRoller() {
     	if (rollerOut) {
-    		roller.set(-1.0);
+    		roller.set(1.0);
     		rollerIn = false;
     	}
     	if (rollerIn) {
-    		roller.set(1.0);
+    		roller.set(-1.0);
     		rollerOut = false;
     	}
     	if (!rollerOut && !rollerIn) {
@@ -733,7 +761,7 @@ public class Robot extends SampleRobot {
     			rightShooter.set(leftShooter.getDeviceID());
     			rightShooter.reverseOutput(true);
     			
-    			leftShooter.set(2000);
+    			leftShooter.set(1000);
     			leftShooter.enable();
     			rightShooter.enable();
     		}
@@ -756,18 +784,25 @@ public class Robot extends SampleRobot {
     	
     	if (FourBarUp) {
     		if (!fourBarRearLimit.get()) {
+        		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
+        		FourBar.enable();
     			FourBar.set(-0.5);
     		} else {
     			FourBar.set(0);
+    			FourBar.disable();
     		}
     	} else if (FourBarDown) {
     		if (!fourBarForwardLimit.get()) {
+        		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
+        		FourBar.enable();
     			FourBar.set(0.5);
     		} else {
     			FourBar.set(0);
+    			FourBar.disable();
     		}
     	} else {
     		FourBar.set(0);
+    		FourBar.disable();
     	}
 /*    	
 		if (!fourBarRearLimit.get() && (input > 0.2)) {
@@ -807,13 +842,13 @@ public class Robot extends SampleRobot {
 */    	
     	if (tiltTableUp) {
     		if (!tiltTableRearLimit.get()) {
-    			tiltTable.set(1.0);
+    			tiltTable.set(-1.0);
     		} else {
     			tiltTable.set(0);
     		}
     	} else if (tiltTableDown) {
     		if (!tiltTableForwardLimit.get()) {
-    			tiltTable.set(-1.0);
+    			tiltTable.set(1.0);
     		} else {
     			tiltTable.set(0);
     		}
