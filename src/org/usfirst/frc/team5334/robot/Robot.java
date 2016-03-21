@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -68,9 +69,11 @@ public class Robot extends SampleRobot {
     boolean shooterOutClick = false;
     boolean shooterIn = false;
     boolean shooterOut = false;
+    boolean cancelShooter = false;
     
     boolean boulderIn = false;
     boolean boulderOut = false;
+    boolean boulderLimitOverride = false;
     
     DigitalInput fourBarForwardLimit;
     DigitalInput fourBarRearLimit;
@@ -90,6 +93,16 @@ public class Robot extends SampleRobot {
     int newMode = -1;
     
     int boulderOutCount = 0;
+    int FourBarMotorMoveCounter = 0;
+    int TiltTableMotorMoveCounter = 0;
+    boolean FourBarMotorStop = false;
+    boolean TiltTableMotorStop = false;
+    
+    boolean shootLowGoal = false;
+    
+    final int FIVE_SECONDS = 250;
+    
+    CameraServer camera;
     
     final String defaultAuto = "Default";
     final String customAuto = "My Auto";
@@ -149,6 +162,12 @@ public class Robot extends SampleRobot {
         
         currentMode = START_MODE;
         pastMode = -1;
+        
+        
+		//camera = CameraServer.getInstance();
+		//camera.setQuality(25);
+		//camera.setSize(1);
+		//camera.startAutomaticCapture("cam1");
     }
     
     public void robotInit() {
@@ -179,6 +198,7 @@ public class Robot extends SampleRobot {
 		
 		currentMode = START_MODE;
 		pastMode = -1;
+		
     }
 
 	/**
@@ -218,6 +238,10 @@ public class Robot extends SampleRobot {
      */
     public void operatorControl() {
         myRobot.setSafetyEnabled(true);
+        currentMode = START_MODE;
+        newMode = currentMode;
+        resetAll();
+        
         while (isOperatorControl() && isEnabled()) {
             //myRobot.arcadeDrive(stick); // drive with arcade style (use right stick)
             
@@ -250,24 +274,7 @@ public class Robot extends SampleRobot {
             
             if (newMode != currentMode) {
             	// mode change
-            	pastMode = currentMode;
-            	currentMode = newMode;
-            	// stop all movement
-            	// this might be problematic if boulder is mid-travel
-            	tiltTable.set(0);
-            	roller.set(0);
-            	boulderHolder.set(0);
-        		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
-        		FourBar.enable();
-        		FourBar.set(0);
-        		FourBar.disable();
-        		leftShooter.set(0);
-        		leftShooter.disable();
-        		rightShooter.set(0);
-        		rightShooter.disable();
-        		
-        		// reset all counters
-        		boulderOutCount = 0;
+            	resetAll();
             	
             }
             
@@ -538,6 +545,36 @@ public class Robot extends SampleRobot {
         }
     }
     
+    public void resetAll () {
+    	pastMode = currentMode;
+    	currentMode = newMode;
+    	// stop all movement
+    	// this might be problematic if boulder is mid-travel
+    	tiltTable.set(0);
+    	roller.set(0);
+    	boulderHolder.set(0);
+		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
+		FourBar.enable();
+		FourBar.set(0);
+		FourBar.disable();
+		leftShooter.set(0);
+		leftShooter.disable();
+		rightShooter.set(0);
+		rightShooter.disable();
+		
+		// reset all counters
+		boulderOutCount = 0;
+		FourBarMotorMoveCounter = 0;
+		TiltTableMotorMoveCounter = 0;
+		FourBarMotorStop = false;
+		TiltTableMotorStop = false;
+		
+		cancelShooter = false;
+		boulderLimitOverride = false;
+		
+		shootLowGoal = false;
+    }
+    
     public void runStartMode () {
     	// FourBarUp
     	// tiltTable Up
@@ -569,6 +606,7 @@ public class Robot extends SampleRobot {
     public void runLowGoalMode () {
     	// FourBar Up
     	// tiltTable Down
+    	
     	FourBarUp = true;
     	FourBarDown = false;
     	runFourBarUpDown();
@@ -577,6 +615,7 @@ public class Robot extends SampleRobot {
     	tiltTableDown = true;
     	runTiltTableUpDown();
     	// trigger shoots boulder if boulder is armed
+    	shootLowGoal = true;
     	runShooterOutSequence();
     }
 
@@ -597,10 +636,16 @@ public class Robot extends SampleRobot {
     
     public void runPickupSequence() {
     	boolean trigger = rightStick.getRawButton(1);
+    	boolean overrideBoulderLimit = rightStick.getRawButton(10);
     	boolean isBoulderIn = boulderHolderLimit.get();
     	
-    	if (!isBoulderIn) {
+    	if (overrideBoulderLimit && isBoulderIn) {
+    		boulderLimitOverride = true;
+    	}
+    	
+    	if (!isBoulderIn || boulderLimitOverride) {
     		// run pickup only if no boulder in
+    		//  or if override
     		
     		if (trigger) {
     			rollerIn = true;
@@ -648,9 +693,39 @@ public class Robot extends SampleRobot {
     
     public void runShooterOutSequence () {
     	boolean trigger = rightStick.getRawButton(1);
+    	boolean cancel = rightStick.getRawButton(7);
+    	boolean overrideBoulderLimit = rightStick.getRawButton(10);
     	boolean isBoulderIn = boulderHolderLimit.get();
     	
-    	if (isBoulderIn) {
+    	if (cancel && trigger) {
+    		cancelShooter = true;
+    	}
+    	if (cancel && !trigger) {
+    		cancelShooter = false;
+    	}
+    	if (cancelShooter && !trigger) {
+    		cancelShooter = false;
+    	}
+    	
+    	if (cancelShooter) {
+    		
+    		shooterOutClick = false;
+    		
+    		shooterOut = false;
+    		shooterIn = false;
+    		runShooter();
+    		boulderOut = false;
+    		boulderIn = false;
+    		runBoulder();    
+    		
+    		return;
+    	}
+    	
+    	if (overrideBoulderLimit && !isBoulderIn) {
+    		boulderLimitOverride = true;
+    	}
+    	
+    	if (isBoulderIn || boulderLimitOverride) {
     	
         	if (trigger) {
         		// trigger in, start shooter motors, reset boulderOutCount
@@ -670,6 +745,7 @@ public class Robot extends SampleRobot {
         		boulderIn = false;
         		runBoulder();
 
+        		boulderLimitOverride = false;
         	}
     		
     	
@@ -719,6 +795,13 @@ public class Robot extends SampleRobot {
     }
     
     public void runShooter () {
+    	
+    	int out = -2250;
+    	if (shootLowGoal) {
+    		// uncomment if slower speed for low goal is desired
+    		// out = -1000;
+    	}
+    	
     	if (shooterOut) {
     		    		
     		if (leftShooter.getOutputVoltage() < 0.1) {
@@ -735,7 +818,7 @@ public class Robot extends SampleRobot {
     			rightShooter.set(leftShooter.getDeviceID());
     			rightShooter.reverseOutput(true);
     			
-    			leftShooter.set(-2250);
+    			leftShooter.set( out );
     			leftShooter.enable();
     			rightShooter.enable();
     		}
@@ -782,27 +865,54 @@ public class Robot extends SampleRobot {
     public void runFourBarUpDown () {
 		// FourBar up  = pull joystick back
     	
+    	if (FourBarMotorStop) {
+    		FourBar.set(0);
+    		FourBar.disable();
+    		return;
+    	}
+    	
     	if (FourBarUp) {
+    		
     		if (!fourBarRearLimit.get()) {
+    			FourBarMotorMoveCounter++; 
+    			if (FourBarMotorMoveCounter > FIVE_SECONDS) { 
+    				// stop motor after 5 seconds, then override limit switch
+    				FourBarMotorStop = true;
+    				FourBar.set(0);
+    				FourBar.disable();
+    				return;
+    			}
         		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
         		FourBar.enable();
     			FourBar.set(-0.5);
     		} else {
+    			FourBarMotorMoveCounter = 0;
     			FourBar.set(0);
     			FourBar.disable();
     		}
     	} else if (FourBarDown) {
+    		
     		if (!fourBarForwardLimit.get()) {
+    			FourBarMotorMoveCounter++; 
+    			if (FourBarMotorMoveCounter > FIVE_SECONDS) { 
+    				// stop motor after 5 seconds, then override limit switch
+    				FourBarMotorStop = true;
+    				FourBar.set(0);
+    				FourBar.disable();
+    				return;
+    			}
         		FourBar.changeControlMode(CANTalon.TalonControlMode.PercentVbus);
         		FourBar.enable();
     			FourBar.set(0.5);
     		} else {
+    			FourBarMotorMoveCounter = 0;
     			FourBar.set(0);
     			FourBar.disable();
     		}
     	} else {
     		FourBar.set(0);
     		FourBar.disable();
+    		FourBarMotorMoveCounter = 0;
     	}
 /*    	
 		if (!fourBarRearLimit.get() && (input > 0.2)) {
@@ -840,19 +950,43 @@ public class Robot extends SampleRobot {
     		tiltTableDown = false;
     	}
 */    	
+    	
+    	if (TiltTableMotorStop) {
+    		tiltTable.set(0);
+
+    		return;
+    	}
+    	
     	if (tiltTableUp) {
     		if (!tiltTableRearLimit.get()) {
-    			tiltTable.set(-1.0);
+    			TiltTableMotorMoveCounter++; 
+    			if (TiltTableMotorMoveCounter > FIVE_SECONDS) { 
+    				// stop motor after 5 seconds, then override limit switch
+    				TiltTableMotorStop = true;
+    				tiltTable.set(0);
+    				return;
+    			}
+    			tiltTable.set(-0.80);
     		} else {
+    			TiltTableMotorMoveCounter = 0;
     			tiltTable.set(0);
     		}
     	} else if (tiltTableDown) {
     		if (!tiltTableForwardLimit.get()) {
-    			tiltTable.set(1.0);
+    			TiltTableMotorMoveCounter++; 
+    			if (TiltTableMotorMoveCounter > FIVE_SECONDS) { 
+    				// stop motor after 5 seconds, then override limit switch
+    				TiltTableMotorStop = true;
+    				tiltTable.set(0);
+    				return;
+    			}
+    			tiltTable.set(0.30);
     		} else {
+    			TiltTableMotorMoveCounter = 0;
     			tiltTable.set(0);
     		}
     	} else {
+    		TiltTableMotorMoveCounter = 0;
     		tiltTable.set(0);
     	}
     }
