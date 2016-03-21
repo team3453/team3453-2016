@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -91,6 +92,8 @@ public class Robot extends SampleRobot {
     
     int boulderOutCount = 0;
     
+    CameraServer camera;
+    
     final String defaultAuto = "Default";
     final String customAuto = "My Auto";
     SendableChooser chooser;
@@ -149,6 +152,12 @@ public class Robot extends SampleRobot {
         
         currentMode = START_MODE;
         pastMode = -1;
+        
+        
+		//camera = CameraServer.getInstance();
+		//camera.setQuality(25);
+		//camera.setSize(1);
+		//camera.startAutomaticCapture("cam1");
     }
     
     public void robotInit() {
@@ -179,6 +188,7 @@ public class Robot extends SampleRobot {
 		
 		currentMode = START_MODE;
 		pastMode = -1;
+		
     }
 
 	/**
@@ -842,13 +852,13 @@ public class Robot extends SampleRobot {
 */    	
     	if (tiltTableUp) {
     		if (!tiltTableRearLimit.get()) {
-    			tiltTable.set(-1.0);
+    			tiltTable.set(-0.80);
     		} else {
     			tiltTable.set(0);
     		}
     	} else if (tiltTableDown) {
     		if (!tiltTableForwardLimit.get()) {
-    			tiltTable.set(1.0);
+    			tiltTable.set(0.30);
     		} else {
     			tiltTable.set(0);
     		}
