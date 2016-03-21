@@ -69,9 +69,11 @@ public class Robot extends SampleRobot {
     boolean shooterOutClick = false;
     boolean shooterIn = false;
     boolean shooterOut = false;
+    boolean cancelShooter = false;
     
     boolean boulderIn = false;
     boolean boulderOut = false;
+    boolean boulderLimitOverride = false;
     
     DigitalInput fourBarForwardLimit;
     DigitalInput fourBarRearLimit;
@@ -228,6 +230,8 @@ public class Robot extends SampleRobot {
      */
     public void operatorControl() {
         myRobot.setSafetyEnabled(true);
+        currentMode = START_MODE;
+        
         while (isOperatorControl() && isEnabled()) {
             //myRobot.arcadeDrive(stick); // drive with arcade style (use right stick)
             
@@ -278,6 +282,9 @@ public class Robot extends SampleRobot {
         		
         		// reset all counters
         		boulderOutCount = 0;
+        		
+        		cancelShooter = false;
+        		boulderLimitOverride = false;
             	
             }
             
@@ -607,10 +614,16 @@ public class Robot extends SampleRobot {
     
     public void runPickupSequence() {
     	boolean trigger = rightStick.getRawButton(1);
+    	boolean overrideBoulderLimit = rightStick.getRawButton(10);
     	boolean isBoulderIn = boulderHolderLimit.get();
     	
-    	if (!isBoulderIn) {
+    	if (overrideBoulderLimit && isBoulderIn) {
+    		boulderLimitOverride = true;
+    	}
+    	
+    	if (!isBoulderIn || boulderLimitOverride) {
     		// run pickup only if no boulder in
+    		//  or if override
     		
     		if (trigger) {
     			rollerIn = true;
@@ -658,9 +671,39 @@ public class Robot extends SampleRobot {
     
     public void runShooterOutSequence () {
     	boolean trigger = rightStick.getRawButton(1);
+    	boolean cancel = rightStick.getRawButton(7);
+    	boolean overrideBoulderLimit = rightStick.getRawButton(10);
     	boolean isBoulderIn = boulderHolderLimit.get();
     	
-    	if (isBoulderIn) {
+    	if (cancel && trigger) {
+    		cancelShooter = true;
+    	}
+    	if (cancel && !trigger) {
+    		cancelShooter = false;
+    	}
+    	if (cancelShooter && !trigger) {
+    		cancelShooter = false;
+    	}
+    	
+    	if (cancelShooter) {
+    		
+    		shooterOutClick = false;
+    		
+    		shooterOut = false;
+    		shooterIn = false;
+    		runShooter();
+    		boulderOut = false;
+    		boulderIn = false;
+    		runBoulder();    
+    		
+    		return;
+    	}
+    	
+    	if (overrideBoulderLimit && !isBoulderIn) {
+    		boulderLimitOverride = true;
+    	}
+    	
+    	if (isBoulderIn || boulderLimitOverride) {
     	
         	if (trigger) {
         		// trigger in, start shooter motors, reset boulderOutCount
@@ -680,6 +723,7 @@ public class Robot extends SampleRobot {
         		boulderIn = false;
         		runBoulder();
 
+        		boulderLimitOverride = false;
         	}
     		
     	
